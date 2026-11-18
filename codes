@@ -1,0 +1,325 @@
+# ===== SETTINGS =====
+$LogoSource = ""   # e.g. "C:\Users\Joe\Downloads\logo.png"  (leave empty to add later)
+$Root = Join-Path $env:USERPROFILE "Desktop\murithi-motors"
+
+# ===== FOLDERS =====
+New-Item -ItemType Directory -Force -Path "$Root\public\assets" | Out-Null
+Set-Location $Root
+
+# ===== LOGO =====
+if ($LogoSource -and (Test-Path $LogoSource)) {
+    Copy-Item $LogoSource "$Root\public\assets\logo.png" -Force
+}
+
+# ===== NODE PROJECT =====
+npm init -y | Out-Null
+npm install express
+
+# ===== server.js =====
+$server = @'
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+
+const app = express();
+const PORT = 3000;
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+const vehicles = [
+  { id: 1, name: 'Family SUV',        category: 'SUV',    price: 3200000, note: 'Spacious, safe and fuel efficient.' },
+  { id: 2, name: 'Compact SUV',       category: 'SUV',    price: 2600000, note: 'City-friendly with room to spare.' },
+  { id: 3, name: 'Executive Sedan',   category: 'Sedan',  price: 2400000, note: 'Comfort and style on every road.' },
+  { id: 4, name: 'Economy Sedan',     category: 'Sedan',  price: 1500000, note: 'Reliable and easy on fuel.' },
+  { id: 5, name: 'Double Cab Pickup', category: 'Pickup', price: 4100000, note: 'Built for work and adventure.' },
+  { id: 6, name: 'Single Cab Pickup', category: 'Pickup', price: 3100000, note: 'Tough, simple, dependable.' }
+];
+
+app.get('/api/vehicles', (req, res) => res.json(vehicles));
+
+app.post('/api/contact', (req, res) => {
+  const { name, phone, message } = req.body || {};
+  if (!name || !phone || !message) {
+    return res.status(400).json({ ok: false, error: 'Please fill in all fields.' });
+  }
+  const file = path.join(__dirname, 'messages.json');
+  let list = [];
+  try { list = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) {}
+  list.push({ name, phone, message, date: new Date().toISOString() });
+  fs.writeFileSync(file, JSON.stringify(list, null, 2));
+  res.json({ ok: true });
+});
+
+app.listen(PORT, () => console.log('Murithi Motors running at http://localhost:' + PORT));
+'@
+Set-Content -Path "$Root\server.js" -Value $server -Encoding UTF8
+
+# ===== public/index.html =====
+$html = @'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Murithi Motors | Quality Vehicles in Nairobi</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <a href="#home" class="brand">
+      <img src="assets/logo.png" alt="Murithi Motors logo" class="logo" onerror="this.style.display='none'">
+      <span>Murithi Motors</span>
+    </a>
+    <button id="menuBtn" class="menu-btn" aria-label="Menu">&#9776;</button>
+    <nav id="nav">
+      <a href="#vehicles">Vehicles</a>
+      <a href="#services">Services</a>
+      <a href="#about">About</a>
+      <a href="#contact" class="btn btn-small">Contact</a>
+    </nav>
+  </header>
+
+  <section id="home" class="hero">
+    <div class="hero-content">
+      <h1>Drive Your <span>Dream</span> Today</h1>
+      <p>Trusted new and used vehicles, fair prices, and service you can count on.</p>
+      <a href="#vehicles" class="btn">View Vehicles</a>
+      <a href="#contact" class="btn btn-outline">Book a Test Drive</a>
+    </div>
+  </section>
+
+  <section id="vehicles" class="section">
+    <h2>Featured Vehicles</h2>
+    <div class="filters" id="filters"></div>
+    <div class="cards" id="vehicleList"><p>Loading vehicles...</p></div>
+  </section>
+
+  <section id="services" class="section alt">
+    <h2>Our Services</h2>
+    <div class="cards">
+      <article class="card center"><div class="icon">&#9881;</div><h3>Servicing &amp; Repairs</h3><p>Certified technicians and genuine parts.</p></article>
+      <article class="card center"><div class="icon">&#128176;</div><h3>Financing</h3><p>Flexible payment plans and trade-ins.</p></article>
+      <article class="card center"><div class="icon">&#128737;</div><h3>Insurance &amp; Warranty</h3><p>Drive with peace of mind.</p></article>
+    </div>
+  </section>
+
+  <section id="about" class="section">
+    <h2>About Us</h2>
+    <p class="about-text">Murithi Motors has been helping Kenyans find the right vehicle for years. We believe in honest deals, quality cars and lasting relationships with our customers.</p>
+    <div class="stats">
+      <div><b data-target="500">0</b><span>Vehicles Sold</span></div>
+      <div><b data-target="10">0</b><span>Years Experience</span></div>
+      <div><b data-target="98">0</b><span>% Happy Customers</span></div>
+    </div>
+  </section>
+
+  <section id="contact" class="section contact">
+    <h2>Get In Touch</h2>
+    <p>Mombasa Road, Nairobi &bull; +254 700 000 000 &bull; info@murithimotors.co.ke</p>
+    <form id="contactForm" class="form">
+      <input type="text" id="name" placeholder="Your name" required>
+      <input type="tel" id="phone" placeholder="Phone number" required>
+      <textarea id="message" rows="4" placeholder="Which vehicle are you interested in?" required></textarea>
+      <button type="submit" class="btn">Send Message</button>
+      <p id="formStatus" class="status"></p>
+    </form>
+  </section>
+
+  <footer>&copy; 2026 Murithi Motors. All rights reserved.</footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
+'@
+Set-Content -Path "$Root\public\index.html" -Value $html -Encoding UTF8
+
+# ===== public/style.css =====
+$css = @'
+:root {
+  --blue: #0b3d91;
+  --blue-dark: #082b66;
+  --orange: #ff7a00;
+  --light: #f4f7fc;
+  --text: #1c2433;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: "Segoe UI", Arial, sans-serif; color: var(--text); line-height: 1.6; }
+
+.site-header {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 6%; background: var(--blue); color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.brand { display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-size: 1.3rem; font-weight: 700; }
+.logo { height: 44px; width: auto; }
+nav { display: flex; align-items: center; gap: 22px; }
+nav a { color: #fff; text-decoration: none; font-weight: 500; }
+nav a:hover { color: var(--orange); }
+.menu-btn { display: none; background: none; border: none; color: #fff; font-size: 1.8rem; cursor: pointer; }
+
+.btn {
+  display: inline-block; padding: 12px 28px; margin: 6px 6px 0 0;
+  background: var(--orange); color: #fff; text-decoration: none; border: none;
+  border-radius: 6px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: .2s;
+}
+.btn:hover { background: #e06c00; transform: translateY(-2px); }
+.btn-small { padding: 8px 18px; margin: 0; }
+.btn-outline { background: transparent; border: 2px solid #fff; }
+.btn-outline:hover { background: #fff; color: var(--blue); }
+
+.hero {
+  min-height: 85vh; display: flex; align-items: center; padding: 0 6%;
+  background: linear-gradient(120deg, rgba(8,43,102,.95) 40%, rgba(255,122,0,.75)), var(--blue);
+  color: #fff;
+}
+.hero-content { max-width: 620px; }
+.hero h1 { font-size: 3.2rem; line-height: 1.15; margin-bottom: 16px; }
+.hero h1 span { color: var(--orange); }
+.hero p { font-size: 1.2rem; margin-bottom: 24px; }
+
+.section { padding: 70px 6%; text-align: center; }
+.section.alt { background: var(--light); }
+.section h2 { color: var(--blue); font-size: 2rem; margin-bottom: 36px; }
+.section h2::after { content: ""; display: block; width: 60px; height: 4px; background: var(--orange); margin: 10px auto 0; border-radius: 2px; }
+
+.filters { margin-bottom: 28px; }
+.filter-btn {
+  padding: 8px 20px; margin: 4px; border: 2px solid var(--blue); background: #fff;
+  color: var(--blue); border-radius: 20px; font-weight: 600; cursor: pointer; transition: .2s;
+}
+.filter-btn.active, .filter-btn:hover { background: var(--blue); color: #fff; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 26px; max-width: 1100px; margin: 0 auto; }
+.card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 4px 14px rgba(0,0,0,.1); text-align: left; transition: .2s; }
+.card:hover { transform: translateY(-6px); }
+.card.center { text-align: center; }
+.card h3 { color: var(--blue); margin: 12px 0 6px; }
+.card strong { display: block; margin-top: 12px; color: var(--orange); }
+.car-img {
+  height: 150px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: var(--orange);
+  font-size: 1.6rem; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
+}
+.icon { font-size: 2.4rem; color: var(--orange); }
+
+.about-text { max-width: 700px; margin: 0 auto 30px; }
+.stats { display: flex; justify-content: center; gap: 50px; flex-wrap: wrap; }
+.stats b { display: block; font-size: 2.2rem; color: var(--orange); }
+.stats span { color: var(--blue); font-weight: 600; }
+
+.contact { background: var(--blue); color: #fff; }
+.contact h2 { color: #fff; }
+.contact > p { margin-bottom: 20px; }
+.form { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.form input, .form textarea { padding: 12px; border: none; border-radius: 6px; font-size: 1rem; font-family: inherit; }
+.form .btn { align-self: center; }
+.status { min-height: 1.4em; font-weight: 600; }
+
+footer { background: var(--blue-dark); color: #cdd6ea; text-align: center; padding: 18px; font-size: .9rem; }
+
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2.2rem; }
+  .menu-btn { display: block; }
+  nav { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; background: var(--blue-dark); padding: 16px; }
+  nav.open { display: flex; }
+}
+'@
+Set-Content -Path "$Root\public\style.css" -Value $css -Encoding UTF8
+
+# ===== public/script.js =====
+$js = @'
+// ----- Mobile menu -----
+const nav = document.getElementById('nav');
+document.getElementById('menuBtn').addEventListener('click', () => nav.classList.toggle('open'));
+nav.addEventListener('click', () => nav.classList.remove('open'));
+
+// ----- Vehicles: load from Node API, render and filter -----
+const list = document.getElementById('vehicleList');
+const filters = document.getElementById('filters');
+let allVehicles = [];
+
+function formatKES(n) {
+  return 'KES ' + n.toLocaleString('en-KE');
+}
+
+function render(items) {
+  list.innerHTML = items.map(v => `
+    <article class="card">
+      <div class="car-img">${v.category}</div>
+      <h3>${v.name}</h3>
+      <p>${v.note}</p>
+      <strong>From ${formatKES(v.price)}</strong>
+    </article>
+  `).join('');
+}
+
+function buildFilters() {
+  const cats = ['All', ...new Set(allVehicles.map(v => v.category))];
+  filters.innerHTML = cats.map((c, i) =>
+    `<button class="filter-btn ${i === 0 ? 'active' : ''}" data-cat="${c}">${c}</button>`
+  ).join('');
+  filters.addEventListener('click', e => {
+    const btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    filters.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const cat = btn.dataset.cat;
+    render(cat === 'All' ? allVehicles : allVehicles.filter(v => v.category === cat));
+  });
+}
+
+fetch('/api/vehicles')
+  .then(r => r.json())
+  .then(data => { allVehicles = data; buildFilters(); render(allVehicles); })
+  .catch(() => { list.innerHTML = '<p>Could not load vehicles. Please try again later.</p>'; });
+
+// ----- Animated stats counter -----
+const counters = document.querySelectorAll('[data-target]');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    const el = entry.target;
+    const target = +el.dataset.target;
+    let n = 0;
+    const step = Math.max(1, Math.ceil(target / 60));
+    const timer = setInterval(() => {
+      n += step;
+      if (n >= target) { n = target; clearInterval(timer); }
+      el.textContent = n + (target >= 100 ? '' : '+');
+    }, 25);
+    observer.unobserve(el);
+  });
+}, { threshold: 0.5 });
+counters.forEach(c => observer.observe(c));
+
+// ----- Contact form -> Node API -----
+const form = document.getElementById('contactForm');
+const status = document.getElementById('formStatus');
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  status.textContent = 'Sending...';
+  try {
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: document.getElementById('name').value,
+        phone: document.getElementById('phone').value,
+        message: document.getElementById('message').value
+      })
+    });
+    const data = await res.json();
+    if (data.ok) { status.textContent = 'Thank you! We will call you soon.'; form.reset(); }
+    else { status.textContent = data.error || 'Something went wrong.'; }
+  } catch (err) {
+    status.textContent = 'Network error. Please try again.';
+  }
+});
+'@
+Set-Content -Path "$Root\public\script.js" -Value $js -Encoding UTF8
+
+Write-Host "Files created in $Root" -ForegroundColor Green
